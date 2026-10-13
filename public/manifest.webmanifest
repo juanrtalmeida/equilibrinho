@@ -1,0 +1,11 @@
+{
+  "name": "Equilibrinho — times equilibrados",
+  "short_name": "Equilibrinho",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f4ef",
+  "theme_color": "#e8590c",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
