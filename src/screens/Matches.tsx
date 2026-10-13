@@ -11,8 +11,8 @@ import { cn } from '@/lib/utils'
 import { mutate, useDB, useModel } from '../store.ts'
 import { gameTotals, logistic, matchTime } from '../engine/rating.ts'
 import type { Match } from '../types.ts'
-import { byTimeDesc, fmtDate, matchSummary, pct, pname, posShort, teamBg, type Go } from '../fmt.ts'
-import { Confirm, PageTitle, Section } from '../ui.tsx'
+import { byTimeDesc, fmtDate, longDate, matchSummary, pct, pname, posName, posShort, teamBg, type Go } from '../fmt.ts'
+import { Confirm, PageTitle, Section, ShareTeams } from '../ui.tsx'
 
 export function Matches({ go, id }: { go: Go; id?: string }) {
   const db = useDB()
@@ -129,6 +129,15 @@ function MatchView({ m, go }: { m: Match; go: Go }) {
           <p className="text-sm text-muted-foreground">Previsão ao montar: {m.teams[0].name} {pct(logistic((m.predicted[0] - m.predicted[1]) / s.learning.scale))} (estimativa).</p>
         )}
       </Section>
+
+      <ShareTeams
+        title={m.name || 'Times'}
+        subtitle={`${longDate(m.date || matchTime(m))} · ${m.format.name}`}
+        teams={m.teams.map((t) => ({
+          name: t.name,
+          players: t.playerIds.map((pid) => ({ name: pname(byId.get(pid)), pos: posName(s, t.positions?.[pid] ?? byId.get(pid)?.primary ?? '') })),
+        }))}
+      />
 
       <div className="grid gap-3 sm:grid-cols-2">
         {m.teams.map((t, ti) => (

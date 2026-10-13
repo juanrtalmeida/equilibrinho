@@ -1,5 +1,7 @@
-import type { ComponentType, ReactNode } from 'react'
-import { Sprout, Gauge, ShieldCheck } from 'lucide-react'
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
+import { toast } from 'sonner'
+import { Sprout, Gauge, ShieldCheck, Share2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardAction, CardDescription } from '@/components/ui/card'
 import {
@@ -8,6 +10,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { pct, plural } from './fmt.ts'
+import { shareImage, teamsImage, teamsText, type ShareTeam } from './share.ts'
 
 export function Confidence({ value, n }: { value: number; n?: number }) {
   const [label, Icon] = value < 0.3 ? ['poucos dados', Sprout] : value < 0.6 ? ['confiança média', Gauge] : ['confiança boa', ShieldCheck]
@@ -98,5 +101,36 @@ export function Stat({ value, label }: { value: ReactNode; label: string }) {
       <span className="text-2xl font-bold tabular-nums">{value}</span>
       <span className="text-xs text-muted-foreground">{label}</span>
     </div>
+  )
+}
+
+// Compartilha a imagem dos times (WhatsApp etc.) pelo menu nativo; no desktop baixa o PNG.
+export function ShareTeams({ title, subtitle, teams, className, size = 'lg' }: {
+  title: string
+  subtitle: string
+  teams: ShareTeam[]
+  className?: string
+  size?: 'default' | 'lg'
+}) {
+  const key = JSON.stringify([title, subtitle, teams])
+  const [ready, setReady] = useState<{ key: string; blob: Blob } | null>(null)
+  const blob = ready?.key === key ? ready.blob : null // imagem de times antigos não vale
+  useEffect(() => {
+    let alive = true
+    const [t, st, tm] = JSON.parse(key) as [string, string, ShareTeam[]]
+    teamsImage(t, st, tm).then((b) => alive && setReady({ key, blob: b }), () => toast.error('Não deu para gerar a imagem dos times.'))
+    return () => void (alive = false)
+  }, [key])
+  return (
+    <Button size={size} className={className} disabled={!blob} onClick={async () => {
+      if (!blob) return
+      const r = await shareImage(blob, title)
+      if (r === 'downloaded')
+        toast('Imagem salva. Anexe no WhatsApp.', {
+          action: { label: 'Enviar como texto', onClick: () => window.open(`https://wa.me/?text=${encodeURIComponent(teamsText(title, teams))}`, '_blank') },
+        })
+    }}>
+      <Share2 /> Compartilhar
+    </Button>
   )
 }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import {
   ArrowLeftRight, BookmarkPlus, Check, ChevronDown, Eraser, Info, Link2, Link2Off, ListRestart, Lock, LockOpen,
-  Pencil, Presentation, Save, Scale, Search, Shuffle, Trash, TriangleAlert, UserCheck, UserPlus, Users, UsersRound, X,
+  Pencil, Pin, Presentation, Save, Scale, Search, Shuffle, Trash, TriangleAlert, UserCheck, UserPlus, Users, UsersRound, X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -21,8 +21,8 @@ import { addPlayer, mutate, mutateDraft, uid, useDB, useDraft, useModel } from '
 import { evaluate, generate, type Ctx, type Eval } from '../engine/balance.ts'
 import { canPlay, logistic, playerStrength, skillScore } from '../engine/rating.ts'
 import type { Draft, Format, Match, Player } from '../types.ts'
-import { byTimeDesc, n1, pct, plural, pname, posName, posShort, teamBg, teamLetter, teamText, type Go } from '../fmt.ts'
-import { Confidence, Confirm, PageTitle, Section } from '../ui.tsx'
+import { byTimeDesc, longDate, n1, pct, plural, pname, posName, posShort, teamBg, teamLetter, teamText, type Go } from '../fmt.ts'
+import { Confidence, Confirm, PageTitle, Section, ShareTeams } from '../ui.tsx'
 
 const chip = 'inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[0.95rem] font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
 
@@ -35,6 +35,7 @@ export function Build({ go }: { go: Go }) {
   const [editing, setEditing] = useState(false)
   const [quick, setQuick] = useState({ name: '', pos: db.settings.positions[0]?.id ?? '', level: 5 })
   const [pair, setPair] = useState(['', ''])
+  const [fixP, setFixP] = useState(['', ''])
   const [groupName, setGroupName] = useState('')
   const s = db.settings
   const byId = new Map(db.players.map((p) => [p.id, p]))
@@ -131,7 +132,7 @@ export function Build({ go }: { go: Go }) {
       {showSetup && (
         <>
           <Section icon={Users} title="Quem vai jogar" action={<Badge variant={participants.length ? 'default' : 'secondary'} className="h-6 px-2.5 text-sm">{participants.length} de {fmt.teams * fmt.perTeam}</Badge>}>
-            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => set((d) => void (d.participants = db.players.filter((p) => p.available).map((p) => p.id)))}>
                 <UserCheck /> Disponíveis
               </Button>
@@ -272,7 +273,7 @@ export function Build({ go }: { go: Go }) {
             </div>
           </Section>
 
-          <Collapsible defaultOpen={draft.constraints.forbid.length + draft.constraints.together.length > 0}>
+          <Collapsible defaultOpen={draft.constraints.forbid.length + draft.constraints.together.length + Object.keys(draft.constraints.positions).length > 0}>
             <Card className="py-0">
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" className="group h-14 w-full justify-between rounded-xl px-4 text-base font-semibold">
@@ -310,7 +311,32 @@ export function Build({ go }: { go: Go }) {
                     )),
                   )}
                 </ul>
-                <p className="text-xs text-muted-foreground">Para fixar alguém num time, gere os times e toque no cadeado ao lado do nome.</p>
+                <div className="grid gap-2 border-t pt-3">
+                  <Label className="flex items-center gap-2"><Pin className="size-4 text-primary" /> Posição fixa nesta montagem</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <NativeSelect className="w-full" aria-label="Jogador" value={fixP[0]} onChange={(e) => setFixP([e.target.value, fixP[1]])}>
+                      <NativeSelectOption value="">jogador…</NativeSelectOption>
+                      {participants.map((id) => <NativeSelectOption key={id} value={id}>{pname(byId.get(id))}</NativeSelectOption>)}
+                    </NativeSelect>
+                    <NativeSelect className="w-full" aria-label="Posição" value={fixP[1]} onChange={(e) => setFixP([fixP[0], e.target.value])}>
+                      <NativeSelectOption value="">posição…</NativeSelectOption>
+                      {s.positions.map((x) => <NativeSelectOption key={x.id} value={x.id}>{x.name}</NativeSelectOption>)}
+                    </NativeSelect>
+                  </div>
+                  <Button variant="outline" disabled={!fixP[0] || !fixP[1]} onClick={() => {
+                    set((d) => void (d.constraints.positions[fixP[0]] = fixP[1]))
+                    setFixP(['', ''])
+                  }}><Pin /> Fixar posição</Button>
+                  <ul className="divide-y">
+                    {Object.entries(draft.constraints.positions).filter(([id]) => inSet.has(id)).map(([id, pos]) => (
+                      <li key={id} className="flex min-h-11 items-center justify-between text-sm">
+                        <span className="flex items-center gap-2"><Pin className="size-4 text-muted-foreground" />{pname(byId.get(id))} joga de {posName(s, pos).toLowerCase()}</span>
+                        <Button variant="ghost" size="icon" aria-label="Remover posição fixa" onClick={() => set((d) => void delete d.constraints.positions[id])}><X /></Button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <p className="text-xs text-muted-foreground">Depois de gerar, dá para fixar alguém num time pelo cadeado e trocar a posição tocando na etiqueta (LEV, PON…).</p>
               </CollapsibleContent>
             </Card>
           </Collapsible>
@@ -335,7 +361,7 @@ export function Build({ go }: { go: Go }) {
 
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <ArrowLeftRight className="size-4 shrink-0" />
-            {sel ? <>Agora toque em alguém do outro time para trocar com <b className="text-foreground">{pname(byId.get(sel))}</b>, ou em “Mover aqui”.</> : 'Toque em um jogador e depois em outro de outro time para trocar.'}
+            <span>{sel ? <>Agora toque em alguém do outro time para trocar com <b className="text-foreground">{pname(byId.get(sel))}</b>, ou em “Mover aqui”.</> : 'Toque em um jogador e depois em outro de outro time para trocar.'}</span>
           </p>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -368,11 +394,13 @@ export function Build({ go }: { go: Go }) {
                         <li key={id} className={cn('flex items-center gap-1 px-2', sel === id && 'bg-accent')}>
                           <button className="flex min-h-12 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50" onClick={() => tapPlayer(id)} aria-pressed={sel === id}>
                             <span className="truncate font-medium">{pname(p)}</span>
-                            <Badge variant={off ? 'destructive' : 'secondary'} title={off ? 'Fora da posição de costume' : undefined}>
-                              {off && <TriangleAlert data-icon="inline-start" />}{posShort(s, pos)}
-                            </Badge>
                             <span className="ml-auto text-sm text-muted-foreground tabular-nums">{Math.round(playerStrength(p, pos, s, model))}</span>
                           </button>
+                          <PosPicker name={pname(p)} pos={pos} off={off} fixed={draft.constraints.positions[id]} s={s}
+                            onChange={(v) => set((d) => {
+                              if (v) d.constraints.positions[id] = v
+                              else delete d.constraints.positions[id]
+                            })} />
                           <Toggle size="default" pressed={locked} aria-label={locked ? `Destravar ${pname(p)}` : `Fixar ${pname(p)} no Time ${teamLetter(ti)}`}
                             className="data-[state=on]:bg-transparent data-[state=on]:text-primary" onPressedChange={(on) => set((d) => {
                               if (on) d.constraints.locks[id] = ti
@@ -417,7 +445,7 @@ export function Build({ go }: { go: Go }) {
             {board ? (
               <>
                 <Button variant="outline" size="lg" onClick={() => run(draft.seed + 1)} aria-label="Sortear outra combinação"><Shuffle /> <span className="max-sm:sr-only">Sortear outra</span></Button>
-                <Present board={board} ev={ev!} byId={byId} s={s} />
+                <Present board={board} ev={ev!} byId={byId} s={s} title={draft.name.trim() || 'Times de hoje'} subtitle={`${longDate(draft.date)} · ${baseFmt.name}`} />
                 <SaveDialog draft={draft} disabled={bench.length > 0} onSave={save} />
               </>
             ) : (
@@ -538,26 +566,28 @@ function Explain({ ev, ctx, seed, onSeed }: { ev: Eval; ctx: Ctx; seed: number; 
 }
 
 // Tela cheia para mostrar ao grupo: nomes grandes, cores dos times, sem notas.
-function Present({ board, ev, byId, s }: { board: string[][]; ev: Eval; byId: Map<string, Player>; s: Ctx['s'] }) {
+function Present({ board, ev, byId, s, title, subtitle }: { board: string[][]; ev: Eval; byId: Map<string, Player>; s: Ctx['s']; title: string; subtitle: string }) {
+  const teams = board.map((ids, ti) => ({ name: `Time ${teamLetter(ti)}`, players: ids.map((id) => ({ name: pname(byId.get(id)), pos: posName(s, ev.teams[ti].pos[id]) })) }))
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="lg" aria-label="Mostrar times para o grupo"><Presentation /> <span className="max-sm:sr-only">Mostrar</span></Button>
+        <Button variant="outline" size="lg" aria-label="Mostrar e compartilhar os times"><Presentation /> <span className="max-sm:sr-only">Mostrar</span></Button>
       </DialogTrigger>
       <DialogContent className="h-dvh max-h-none w-screen max-w-none overflow-y-auto rounded-none p-5 sm:max-w-none">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Times de hoje</DialogTitle>
-          <DialogDescription>Bom jogo! 🏐</DialogDescription>
+          <DialogTitle className="text-2xl">{title}</DialogTitle>
+          <DialogDescription>{subtitle} · Bom jogo! 🏐</DialogDescription>
         </DialogHeader>
+        <ShareTeams title={title} subtitle={subtitle} teams={teams} />
         <div className="grid content-start gap-4 sm:grid-cols-2">
-          {board.map((ids, ti) => (
+          {teams.map((t, ti) => (
             <section key={ti} className="overflow-hidden rounded-2xl ring-1 ring-foreground/10">
-              <h2 className={cn('px-4 py-3 text-2xl font-black text-white', teamBg(ti))}>Time {teamLetter(ti)}</h2>
+              <h2 className={cn('px-4 py-3 text-2xl font-black text-white', teamBg(ti))}>{t.name}</h2>
               <ul className="divide-y">
-                {ids.map((id) => (
-                  <li key={id} className="flex items-baseline justify-between gap-3 px-4 py-2.5">
-                    <span className="text-2xl font-semibold">{pname(byId.get(id))}</span>
-                    <span className="text-sm text-muted-foreground uppercase">{posName(s, ev.teams[ti].pos[id])}</span>
+                {t.players.map((p, pi) => (
+                  <li key={pi} className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+                    <span className="text-2xl font-semibold">{p.name}</span>
+                    <span className="text-sm text-muted-foreground uppercase">{p.pos}</span>
                   </li>
                 ))}
               </ul>
@@ -595,5 +625,28 @@ function SaveDialog({ draft, disabled, onSave }: { draft: Draft; disabled: boole
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// Etiqueta de posição que abre o seletor nativo: “Automática” devolve a escolha ao app.
+function PosPicker({ name, pos, off, fixed, s, onChange }: {
+  name: string
+  pos: string
+  off: boolean
+  fixed?: string
+  s: Ctx['s']
+  onChange: (pos: string) => void
+}) {
+  return (
+    <label className="relative flex min-h-11 min-w-11 cursor-pointer items-center justify-center" title={fixed ? 'Posição fixada' : off ? 'Fora da posição de costume' : 'Trocar posição'}>
+      <Badge variant={off && !fixed ? 'destructive' : fixed ? 'default' : 'secondary'}>
+        {fixed ? <Pin data-icon="inline-start" /> : off && <TriangleAlert data-icon="inline-start" />}
+        {posShort(s, pos)}
+      </Badge>
+      <select aria-label={`Posição de ${name}`} className="absolute inset-0 cursor-pointer opacity-0" value={fixed ?? ''} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Automática</option>
+        {s.positions.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+      </select>
+    </label>
   )
 }

@@ -79,10 +79,11 @@ export function playerStrength(p: Player, pos: string, s: Settings, model: Model
   return skillScore(p, pos, s) * fit(p, pos) + (model.stats.get(p.id)?.offset ?? 0)
 }
 
-// Distribui posições: todos começam na principal; vagas não cobertas puxam jogadores excedentes,
-// preferindo quem tem a posição como secundária. Fora de posição só para vaga obrigatória.
-export function assign(ps: Player[], fmt: Format, s: Settings) {
-  const out: Record<string, string> = Object.fromEntries(ps.map((p) => [p.id, p.primary]))
+// Distribui posições: posição fixada pelo organizador manda; os demais começam na principal e
+// vagas não cobertas puxam jogadores excedentes, preferindo quem tem a posição como secundária.
+// Fora de posição só para vaga obrigatória.
+export function assign(ps: Player[], fmt: Format, s: Settings, fixed: Record<string, string> = {}) {
+  const out: Record<string, string> = Object.fromEntries(ps.map((p) => [p.id, fixed[p.id] ?? p.primary]))
   const quota = (pos: string) => (fmt.required[pos] ?? 0) + (fmt.desired[pos] ?? 0)
   const count = (pos: string) => ps.filter((p) => out[p.id] === pos).length
   const fill = (pos: string, need: number, anyone: boolean) => {
@@ -91,6 +92,7 @@ export function assign(ps: Player[], fmt: Format, s: Settings) {
       let bs = -Infinity
       for (const p of ps) {
         const cur = out[p.id]
+        if (fixed[p.id]) continue
         if (cur === pos || count(cur) <= quota(cur)) continue // não desfalca outra vaga
         if (!anyone && !canPlay(p, pos)) continue
         const sc = (canPlay(p, pos) ? 1000 : 0) + skillScore(p, pos, s)

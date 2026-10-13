@@ -21,7 +21,7 @@ function setup(): DB {
   return db
 }
 
-const ctxOf = (db: DB, cons: Ctx['cons'] = { locks: {}, forbid: [], together: [] }): Ctx => ({
+const ctxOf = (db: DB, cons: Ctx['cons'] = { locks: {}, forbid: [], together: [], positions: {} }): Ctx => ({
   s: db.settings,
   model: replay(db),
   byId: new Map(db.players.map((p) => [p.id, p])),
@@ -53,7 +53,7 @@ test('balance é determinístico, equilibrado e separa levantadores', () => {
 test('restrições: lock e par proibido respeitados', () => {
   const db = setup()
   const ids = db.players.map((p) => p.id)
-  const ctx = ctxOf(db, { locks: { p0: 1, p5: 1 }, forbid: [['p2', 'p3']], together: [['p4', 'p6']] })
+  const ctx = ctxOf(db, { locks: { p0: 1, p5: 1 }, forbid: [['p2', 'p3']], together: [['p4', 'p6']], positions: {} })
   for (const board of generate(ids, ctx, 7)) {
     assert.ok(board[1].includes('p0') && board[1].includes('p5'))
     assert.ok(!board.some((t) => t.includes('p2') && t.includes('p3')))
@@ -92,4 +92,21 @@ test('posições: cada um na principal; excedente cobre vaga obrigatória', () =
   const out = assign(noSetter, fmt, db.settings)
   assert.equal(Object.values(out).filter((x) => x === 'levantador').length, 1)
   assert.equal(out.p1 === 'levantador' || out.p2 === 'levantador' || out.p3 === 'levantador', true) // central está na cota desejável (2)
+})
+
+test('posição fixada: assign respeita e o balanceamento conta como cobertura', () => {
+  const db = setup()
+  const fmt = db.settings.formats[0]
+  // Kiko (p10, oposto) fixado como levantador
+  const out = assign([db.players[10], db.players[0], db.players[2]], fmt, db.settings, { p10: 'levantador' })
+  assert.equal(out.p10, 'levantador')
+  assert.equal(out.p0, 'levantador') // o levantador de ofício continua na dele; fixado não é "puxado"
+  const ids = db.players.map((p) => p.id)
+  const ctx = ctxOf(db, { locks: {}, forbid: [], together: [], positions: { p10: 'levantador', p11: 'levantador' } })
+  for (const board of generate(ids, ctx, 3)) {
+    const ev = evaluate(board, ctx)
+    for (const t of ev.teams) for (const id of t.ids) if (id === 'p10' || id === 'p11') assert.equal(t.pos[id], 'levantador')
+    // 4 "levantadores" agora (2 de ofício + 2 fixados): espalhados 2 e 2
+    assert.deepEqual(ev.teams.map((t) => t.posCount.levantador ?? 0), [2, 2])
+  }
 })

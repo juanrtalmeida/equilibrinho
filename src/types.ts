@@ -23,6 +23,7 @@ export interface Constraints {
   locks: Record<string, number> // jogador -> índice do time
   forbid: [string, string][]
   together: [string, string][]
+  positions: Record<string, string> // jogador -> posição fixada nesta montagem
 }
 
 export interface Team {

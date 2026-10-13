@@ -47,13 +47,16 @@ export function evaluate(board: string[][], ctx: Ctx): Eval {
   const reasons: string[] = []
   const pname = (id: string) => byId.get(id)?.nick || byId.get(id)?.name || '?'
 
+  const fixed = cons.positions ?? {}
+  // posição fixada conta como cobertura (o organizador decidiu); quem foi fixado em outra não cobre a de origem
+  const covers = (p: Player, k: string) => (fixed[p.id] ? fixed[p.id] === k : canPlay(p, k))
   const teams: TeamEval[] = board.map((ids) => {
     const ps = ids.map((id) => byId.get(id)).filter((p): p is Player => !!p)
-    const pos = assign(ps, fmt, s)
+    const pos = assign(ps, fmt, s, fixed)
     const attrs: Record<string, number> = {}
     for (const a of s.attributes) attrs[a.id] = ps.length ? ps.reduce((x, p) => x + (p.skills[a.id] ?? 5), 0) / ps.length : 0
     const posCount: Record<string, number> = {}
-    for (const p of ps) posCount[p.primary] = (posCount[p.primary] ?? 0) + 1
+    for (const p of ps) posCount[fixed[p.id] ?? p.primary] = (posCount[fixed[p.id] ?? p.primary] ?? 0) + 1
     const synergies: Syn[] = []
     for (let i = 0; i < ids.length; i++)
       for (let j = i + 1; j < ids.length; j++) {
@@ -68,9 +71,9 @@ export function evaluate(board: string[][], ctx: Ctx): Eval {
       attrs,
       pos,
       posCount,
-      missing: Object.keys(fmt.required).filter((k) => fmt.required[k] > 0 && !ps.some((p) => canPlay(p, k))),
+      missing: Object.keys(fmt.required).filter((k) => fmt.required[k] > 0 && !ps.some((p) => covers(p, k))),
       missingDesired: Object.keys(fmt.desired).filter(
-        (k) => fmt.desired[k] > 0 && ps.filter((p) => canPlay(p, k)).length < fmt.desired[k],
+        (k) => fmt.desired[k] > 0 && ps.filter((p) => covers(p, k)).length < fmt.desired[k],
       ),
       top: Math.max(0, ...ps.map((p) => playerStrength(p, pos[p.id], s, model))),
       synergies,

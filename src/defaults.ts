@@ -63,7 +63,7 @@ export const emptyDraft = (): Draft => ({
   formatId: '6x6',
   teams: 2,
   participants: [],
-  constraints: { locks: {}, forbid: [], together: [] },
+  constraints: { locks: {}, forbid: [], together: [], positions: {} },
   seed: 1,
   options: [],
   board: null,

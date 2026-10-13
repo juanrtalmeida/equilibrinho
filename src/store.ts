@@ -69,7 +69,11 @@ export function normalizeDB(x: unknown): DB {
 }
 
 const dbStore = createStore('equilibrinho.db', emptyDB, normalizeDB)
-const draftStore = createStore('equilibrinho.draft', emptyDraft, (x) => ({ ...emptyDraft(), ...(x as Draft) }))
+const draftStore = createStore('equilibrinho.draft', emptyDraft, (x) => {
+  const d = { ...emptyDraft(), ...(x as Draft) }
+  d.constraints = { ...emptyDraft().constraints, ...d.constraints }
+  return d
+})
 
 export const useDB = dbStore.use
 export const mutate = dbStore.mutate

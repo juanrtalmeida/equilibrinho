@@ -49,7 +49,7 @@ export function Players({ go, id }: { go: Go; id?: string }) {
           const st = model.stats.get(x.id)
           const str = skillScore(x, x.primary, s) + (st?.offset ?? 0)
           return (
-            <li key={x.id} className="flex items-center gap-2 rounded-xl bg-card pr-3 ring-1 ring-foreground/10">
+            <li key={x.id} className="flex items-center gap-1 rounded-xl bg-card pr-1 ring-1 ring-foreground/10">
               <button className="flex min-h-16 min-w-0 flex-1 items-center gap-3 rounded-xl p-3 text-left hover:bg-muted/60" onClick={() => go({ tab: 'players', id: x.id })}>
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent font-semibold text-accent-foreground">{initials(x)}</span>
                 <span className="min-w-0 flex-1">
@@ -65,11 +65,13 @@ export function Players({ go, id }: { go: Go; id?: string }) {
                 </span>
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
               </button>
-              <Switch
-                checked={x.available}
-                aria-label={`${pname(x)} disponível para jogar`}
-                onCheckedChange={(v) => mutate((d) => void (d.players.find((y) => y.id === x.id)!.available = v))}
-              />
+              <label className="flex min-h-16 cursor-pointer items-center px-2" title="Disponível para jogar">
+                <Switch
+                  checked={x.available}
+                  aria-label={`${pname(x)} disponível para jogar`}
+                  onCheckedChange={(v) => mutate((d) => void (d.players.find((y) => y.id === x.id)!.available = v))}
+                />
+              </label>
             </li>
           )
         })}

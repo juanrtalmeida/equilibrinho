@@ -31,3 +31,10 @@ const TEAM_TEXT = ['text-team-a', 'text-team-b', 'text-team-c', 'text-team-d']
 export const teamBg = (i: number) => TEAM_BG[i % 4]
 export const teamText = (i: number) => TEAM_TEXT[i % 4]
 export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+
+// "quinta-feira, 15 de outubro · 19:30" — subtítulo da imagem compartilhada
+export function longDate(t?: number | string) {
+  const d = t === undefined || t === '' ? new Date() : new Date(t)
+  const day = d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+  return t === undefined || t === '' ? day : `${day} · ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+}

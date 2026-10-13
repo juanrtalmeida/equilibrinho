@@ -17,5 +17,7 @@ const precache = (): Plugin => ({
 export default defineConfig({
   base: './',
   plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss(), precache()],
+  // PWA local, carregado uma vez e servido do cache: um bundle só é mais simples que code-splitting
+  build: { chunkSizeWarningLimit: 700 },
   resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
 })
